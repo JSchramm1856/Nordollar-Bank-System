@@ -15,9 +15,12 @@ def close_db(exception):
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
+        g.db = sqlite3.connect("bank.db")
         g.db.row_factory = sqlite3.Row
+        # Force rollback journal mode (avoids creating .db-wal/.db-shm)
+        g.db.execute("PRAGMA journal_mode=DELETE;")
     return g.db
+
 
 # Test DB connection
 with app.app_context():
@@ -39,4 +42,5 @@ def accounts():
 
 # Run App
 if __name__ == "__main__":
+    #print("Hello World")
     app.run(host="0.0.0.0", port=1000, debug=True)

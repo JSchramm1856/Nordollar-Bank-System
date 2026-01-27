@@ -27,7 +27,7 @@ with app.app_context():
     db = get_db()
     print("DB opened:", db)
 
-"""
+
 # Routes
 @app.route("/accounts")
 def accounts():
@@ -41,7 +41,7 @@ def accounts():
         accounts=rows
     )
 
-
+"""
 # Run App
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=1000, debug=True)

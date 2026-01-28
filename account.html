@@ -17,6 +17,8 @@
   <p class="balance">Balance: $<span id="balance">0</span></p>
 
   <button id="payBtn">Pay</button>
+  <button id="allAccountsBtn" style="display:none;">All Accounts</button>
+
 
   <br><br>
   <button id="logoutBtn">Logout</button>
@@ -37,6 +39,49 @@
 
   document.getElementById("username").textContent = user.username;
   document.getElementById("balance").textContent = user.balance;
+
+  const allAccountsBtn = document.getElementById("allAccountsBtn");
+  if (user.username === "Bank") {
+
+  console.log("Bank account detected — enabling All Accounts button");
+  allAccountsBtn.style.display = "inline-block";
+  }
+  allAccountsBtn.addEventListener("click", () => {
+  if (document.getElementById("bankForm")) return;
+
+  const form = document.createElement("div");
+  form.id = "bankForm";
+  form.innerHTML = `
+    <h3>Bank Action</h3>
+    <label>Amount:
+      <input type="number" id="bankAmount" min="1">
+    </label><br><br>
+
+    <button id="giveBtn">Give to Everyone</button>
+    <button id="takeBtn">Take from Everyone</button>
+    <button id="cancelBank">Cancel</button>
+
+    <p id="bankMessage"></p>
+  `;
+
+  document.body.appendChild(form);
+
+  document.getElementById("cancelBank").onclick = () => form.remove();
+
+  document.getElementById("giveBtn").onclick = () => {
+    const amount = Number(document.getElementById("bankAmount").value);
+    if (amount <= 0) return showBankError("Invalid amount");
+    bankDistribute(amount, "give");
+  };
+
+  document.getElementById("takeBtn").onclick = () => {
+    const amount = Number(document.getElementById("bankAmount").value);
+    if (amount <= 0) return showBankError("Invalid amount");
+    bankDistribute(amount, "take");
+  };
+});
+
+
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
     localStorage.removeItem("nordollar_user");
@@ -205,6 +250,66 @@
       console.log("paying flag reset");
     }
   }
+
+  async function bankDistribute(amount, mode) {
+  const output = document.getElementById("bankMessage");
+  output.textContent = "Processing...";
+
+  try {
+    // Fetch all non-bank accounts
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/accounts?is_bank=eq.false`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+
+    if (!res.ok) {
+      output.textContent = "Failed to load accounts";
+      return;
+    }
+
+    const accounts = await res.json();
+
+    for (const acct of accounts) {
+      let newBalance =
+        mode === "give"
+          ? acct.balance + amount
+          : Math.max(0, acct.balance - amount);
+
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/accounts?id=eq.${acct.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ balance: newBalance })
+        }
+      );
+    }
+
+    output.textContent =
+      mode === "give"
+        ? `Gave $${amount} to all accounts`
+        : `Took $${amount} from all accounts`;
+
+    console.log("Bank operation completed");
+
+  } catch (err) {
+    console.error(err);
+    output.textContent = "Unexpected error";
+  }
+}
+
+function showBankError(msg) {
+  document.getElementById("bankMessage").textContent = msg;
+}
 </script>
 
 </body>
